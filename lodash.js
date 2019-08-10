@@ -76,6 +76,79 @@ module.exports = function () {
   }
 
   /**
+   * 创建一个数组,返回第一个参数的中不包括第二个参数的值
+   * 采用 sameValueZero 比较方法, 0 和 -0 是相等的
+   * @param {Array} array
+   * @param {value | Array} other
+   */
+  function difference(array) {
+    const other = Array.prototype.slice.call(arguments, 1)
+    if (isArray(other)) {
+      const toExclude = flattenDeep(other)
+      return array.reduce((ret, it) => {
+        if (!toExclude.includes(it)) ret.push(it)
+        return ret
+      }, [])
+    } else {
+      return array.reduce((ret, it) => {
+        if (it !== other) ret.push(it)
+        return ret
+      }, [])
+    }
+  }
+
+  /**
+   * 类似 difference, 但接受一个 谓词函数 以比较 array, other 中的值
+   *
+   * @param {Array} array
+   * @param [values](...array)
+   * @param [iteratee = identify](Function)
+   */
+  function differenceBy(arr, ...args) {
+    const predicate = isArray(last(args)) ? null : iteratee(args.pop())
+    if (predicate === null) return difference(arr, args)
+
+    const ret = []
+    const toExclude = flattenDeep(args).map(it => predicate.call(null, it))
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (!toExclude.includes(predicate(arr[i]))) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 difference, 但会调用 比较函数来对比 array 的值和 values 值是否相等
+   * compare 函数接受两个参数 arrVal, othVal
+   * @param {Array} array
+   * @param {values | Array} values
+   * @param {Function} compare
+   */
+  function differenceWith(array, other, compare) {
+    if (!isArray(other)) return array.slice()
+    const ret = []
+    for (let i = 0, len = array.length; i < len; i++) {
+      const arrVal = array[i]
+      if (!other.every(othVal => compare(arrVal, othVal))) ret.push(arrVal)
+    }
+    return ret
+  }
+
+  /**
+   * 从 start 开始 用 value 填充 array, 直到 end(不包括 end)
+   * 该方法会改变原数组
+   * @param {Array} arr
+   * @param {*} value
+   * @param {number} [start=0]
+   * @param {number} [end=arr.length]
+   */
+  function fill(arr, value, start = 0, end = arr.length) {
+    for (let i = start; i < end; i++) {
+      arr[i] = value
+    }
+    return arr
+  }
+
+  /**
    * 从左到右删除数组上的值, 返回新数组
    * @param {Array} array
    * @param {[number} [number=1] the number of element to drop
@@ -119,25 +192,167 @@ module.exports = function () {
   function dropWhile(ary, predicate) {
     let ret = ary.slice()
     for (let i = 0, len = ary.length; i < len; i++) {
-      const negateFunc = iteratee(predicate)
-      if (!negateFunc(ary[i])) break
+      const func = iteratee(predicate)
+      if (!func(ary[i])) break
       ret = drop(ret, 1)
     }
     return ret
   }
 
   /**
-   * 
+   * 迭代数组, 返回第一个符合 谓词函数返回 true 的元素的下标, 可以指定迭代开始的位置
    * @param {Array} ary
-   * @param {*} [predicate=identity]
+   * @param {*} [predicate=identity] 接受三个参数, value, index/key, collection
    * @param {number} [fromIdx=0]
    */
   function findIndex(ary, predicate, fromIdx = 0) {
     for (let i = fromIdx, len = ary.length; i < len; i++) {
       const fn = iteratee(predicate)
-      if (fn(ary[i])) return i
+      if (fn(ary[i], i, ary)) return i
     }
     return -1
+  }
+
+  /**
+   * 类似 findIndex , 但是从后往前迭代数组, 返回第一个符合 谓词函数返回 true 的元素的下标, 可以指定迭代开始的位置
+   * @param {Array} arr
+   * @param {Function} predicate 接受三个参数, val, index/key, collection
+   * @param {number} [fromIdx=arr.length - 1]
+   */
+  function findLastIndex(arr, predicate, fromIdx = arr.length - 1) {
+    for (let i = fromIdx; i >= 0; i--) {
+      const fn = iteratee(predicate)
+      if (fn(arr[i], i, arr)) return i
+    }
+    return -1
+  }
+
+  /**
+   * 迭代数组, 返回第一个符合 谓词函数返回 true 的元素, 可以指定迭代开始的位置
+   * @param {Array} ary
+   * @param {*} [predicate=identity] 接受三个参数, value, index/key, collection
+   * @param {number} [fromIdx=0]
+   */
+  function find(ary, predicate, fromIdx = 0) {
+    for (let i = fromIdx, len = ary.length; i < len; i++) {
+      const fn = iteratee(predicate)
+      if (fn(ary[i], i, ary)) return ary[i]
+    }
+    return void 0
+  }
+
+  /**
+   * 返回数组的第一个元素
+   *
+   * @param {Array} array
+   * @returns {*} value
+   */
+  function head(array) {
+    return array[0]
+  }
+
+  /**
+   * 返回数组的最后一项元素
+   * @param {*} arr
+   * @returns
+   */
+  function last(arr) {
+    return arr[arr.length - 1]
+  }
+
+  /**
+   *  返回一个对象, 键值对由 pairs 的 key-value 组成
+   * [['a', 1], ['b', 2]] ---> {'a': 1, 'b': 2}
+   * @param {Array} pairs
+   * @returns {object} object
+   */
+  function fromPairs(pairs) {
+    let ret = {}
+    for (let i = 0, len = pairs.length; i < len; i++) {
+      ret[pairs[i][0]] = pairs[i][1]
+    }
+    return ret
+  }
+
+  /**
+   * 在 arr 中返回 value 第一次出现的位置, 没有出现则返回 -1. fromIdx 指定开始搜索的位置, 如果 fromIdx为负数则表示从末尾的偏移量
+   * 使用 SameValueZero 比较
+   * @param {Array} arr
+   * @param {*} value
+   * @param {number} [fromIdx=0]
+   */
+  function indexOf(arr, value, fromIdx = 0) {
+    if (fromIdx < 0) {
+      fromIdx = arr.length + fromIdx
+    }
+    for (let i = fromIdx, len = arr.length; i < len; i++) {
+      if (arr[i] === value) return i
+    }
+    return -1
+  }
+
+  /**
+   * 类似 indexOf, 但从后往前遍历数组, 返回匹配元素的下标
+   * @param {Array} arr
+   * @param {*} value
+   * @param {number} [fromIdx=arr.length - 1]
+   */
+  function lastIndexOf(arr, value, fromIdx = arr.length - 1) {
+    if (fromIdx < 0) fromIdx = arr.length + fromIdx
+    for (let i = fromIdx; i >= 0; i--) {
+      if (arr[i] === value) return i
+    }
+    return -1
+  }
+
+  /**
+   * 获取包含除了最后一项元素以外的所有元素的数组
+   * @param {*} arr
+   * @returns
+   */
+  function initial(arr) {
+    return arr.slice(0, arr.length - 1)
+  }
+
+  /**
+   * 获取 包含所有交集 的数组
+   * @param {array} (...Arrays) arrays
+   * [2,1,2]
+   */
+  function intersection(...arrays) {
+    const args = arrays.reduce((arr, it) => [...arr, ...uniq(it)], [])
+    const map = {}
+    return args.reduce((ret, it) => {
+      if (map[it]) {
+        ret.push(it)
+        map[it] = true
+      }
+      map[it] = true
+      return ret
+    }, [])
+  }
+
+  /**
+   * 数组去重
+   * @param {Array} arr
+   * @returns {Array} 
+   */
+  function uniq(arr) {
+    return Array.from(new Set(arr))
+  }
+
+  /**
+   * 接受一个数组, 
+   * @param {*} collection
+   * @param {*} predicate
+   */
+  function filter(collection, predicate) {
+    const ret = []
+    const fn = iteratee(predicate)
+    for (let i = 0, len = collection.length; i < len; i++) {
+      if (!fn(arr[i], i, collection)) ret.push(arr[i])
+    }
+    return ret
   }
 
   /**
@@ -386,11 +601,26 @@ module.exports = function () {
     flatten,
     flattenDeep,
     flattenDepth,
+    difference,
+    differenceBy,
+    differenceWith,
+    fill,
     drop,
     dropRight,
     dropRightWhile,
     dropWhile,
     findIndex,
+    findLastIndex,
+    find,
+    head,
+    fromPairs,
+    indexOf,
+    lastIndexOf,
+    initial,
+    intersection,
+    uniq,
+    filter,
+
     MatchesProperty,
     Matches,
     isMatch,
