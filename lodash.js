@@ -286,7 +286,7 @@ module.exports = function () {
       fromIdx = arr.length + fromIdx
     }
     for (let i = fromIdx, len = arr.length; i < len; i++) {
-      if (arr[i] === value) return i
+      if (compareBySameValueZero(arr[i], value)) return i
     }
     return -1
   }
@@ -300,7 +300,7 @@ module.exports = function () {
   function lastIndexOf(arr, value, fromIdx = arr.length - 1) {
     if (fromIdx < 0) fromIdx = arr.length + fromIdx
     for (let i = fromIdx; i >= 0; i--) {
-      if (arr[i] === value) return i
+      if (compareBySameValueZero(arr[i], value)) return i
     }
     return -1
   }
@@ -333,6 +333,71 @@ module.exports = function () {
   }
 
   /**
+   * 类似 intersection , 但可以接受一个谓词函数
+   * @param {[Array]|[Function]} 
+   * @returns {Array}
+   */
+  function intersectionBy(...args) {
+    const predicate = args.pop()
+    if (isArray(predicate)) return []
+
+    const map = {}
+    const callback = iteratee(predicate)
+    args = args.reduce((arr, it) => [...arr, ...uniq(it)], [])
+    return args.reduce((ret, it, idx) => {
+      const key = callback(it)
+      switch (map[key]) {
+        case void 0:
+          map[key] = idx
+          break;
+        case false:
+          break;
+        default:
+          ret.push(args[map[key]])
+          map[key] = false
+          break;
+      }
+      return ret
+    }, [])
+  }
+
+  /**
+   * 类似 intersection, 但接受一个比较函数来判断每一项值是否是交集
+   * @param {Array} arr
+   * @param {Function} comparator 接受两个参数 arrVal, otherVal
+   * @returns
+   */
+  function intersectionWith(arr, ...args) {
+    const comparator = args.pop()
+    args = flattenDeep(args)
+    const ret = []
+    for (let i = 0; i < arr.length; i++) {
+      for (let j = 0; j < args.length; j++) {
+        if (comparator(arr[i], args[j])) {
+          ret.push(arr[i])
+          break
+        }
+      }
+    }
+    return ret
+  }
+
+  /**
+   * 将数组转换为字符串, 按 separator 进行分割, separator 默认为逗号
+   * @param {Array} arr
+   * @param {string} [separator=',']
+   * @returns {string}
+   */
+  function join(arr, separator = ',') {
+    let ret = ""
+    ret += arr[0]
+    for (let i = 1; i < arr.length; i++) {
+      ret = ret + separator + arr[i]
+    }
+    return ret
+  }
+
+  /**
    * 数组去重
    * @param {Array} arr
    * @returns {Array} 
@@ -342,17 +407,129 @@ module.exports = function () {
   }
 
   /**
-   * 接受一个数组, 
+   * 接受一个数组, 返回谓词函数为 true 的元素
    * @param {*} collection
    * @param {*} predicate
+   * @returns {Array}
    */
   function filter(collection, predicate) {
     const ret = []
-    const fn = iteratee(predicate)
+    const fn = iteratee(predicate) || identity
     for (let i = 0, len = collection.length; i < len; i++) {
-      if (!fn(arr[i], i, collection)) ret.push(arr[i])
+      if (fn(collection[i], i, collection)) ret.push(collection[i])
     }
     return ret
+  }
+
+  /**
+   * 返回数组中的第 n 个元素, 如果 n 是负数,则返回从右开始的第 n 个元素
+   * @param {Array} array
+   * @param {number} [n=0]
+   */
+  function nth(array, n = 0) {
+    if (n < 0) {
+      for (let i = array.length - 1; i >= 0; i--) {
+        if (++n === 0) return array[i]
+      }
+    } else {
+      for (let i = 0, len = array.length; i < len; i++) {
+        if (i === n) return array[i]
+      }
+    }
+  }
+
+  /**
+   * 从 arr 中移除给定的元素, 该方法会修改原数组
+   * @param {Array} arr
+   * @param [values] (...*): The values to remove.
+   * @returns {Array}
+   */
+  function pull(arr, ...other) {
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (other.includes(arr[i])) arr.splice(i--, 1)
+    }
+    return arr
+  }
+
+  /**
+   * 类似 pull, 但接受一个数组作为要移除的元素
+   * @param {Array} arr
+   * @param {Array} The values to remove.
+   * @returns {Array}
+   */
+  function pullAll(arr, other) {
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (other.includes(arr[i])) arr.splice(i--, 1)
+    }
+    return arr
+  }
+
+  /**
+   * 类似 pullAll, 但接受一个迭代器
+   * @param {Array} arr
+   * @param {Array} other
+   * @param {Function} predicate
+   * @returns
+   */
+  function pullAllBy(arr, other, predicate) {
+    const shorthand = iteratee(predicate)
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (other.some(it => shorthand(it) === shorthand(arr[i]))) arr.splice(i--, 1)
+    }
+    return arr
+  }
+
+  /**
+   * 类似 pullAll, 但接受一个比较函数
+   * @param {Array} arr
+   * @param {Array} other
+   * @param {Function} compare 接受的参数为 arrVal, othVal
+   */
+  function pullAllWith(arr, other, compare) {
+    if (!compare) return pullAll(arr, other)
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (other.some(it => compare(arr[i], it))) arr.splice(i--, 1)
+    }
+    return arr
+  }
+
+  /**
+   * 从 arr 中移除 indexes 指定的下标上的元素, 该方法会修改原数组
+   * @param {Array} arr
+   * @param {Array}(...number) the indexes of element to remove
+   * @returns {Array} 返回移除的元素组成的数组
+   */
+  function pullAt(arr, indexes) {
+    const pulled = indexes.map(idx => arr[idx])
+    pullAll(arr, pulled)
+    return pulled
+  }
+
+  /**
+   * 同原生函数 Array.prototype.reverse.
+   * 该方法会修改原数组
+   * @param {Array} arr
+   */
+  function reverse(arr) {
+    if (!isArray(arr)) return arr
+    let i = 0
+    let j = arr.length - 1
+    while (i < j) {
+      swap(arr, i++, j--)
+    }
+    return arr
+  }
+
+  /**
+   * 在原数组上交换元素的位置
+   * @param {Array  } arr
+   * @param {number} i the index of exchange element
+   * @param {number} j the index of exchange element
+   */
+  function swap(arr, i, j) {
+    const tmp = arr[i]
+    arr[i] = arr[j]
+    arr[j] = tmp
   }
 
   /**
@@ -515,6 +692,15 @@ module.exports = function () {
   }
 
   /**
+   * 判断一个值是否是正则表达式
+   *
+   * @param {*} value
+   */
+  function isRegExp(value) {
+    return getTag(value) === '[object RegExp]'
+  }
+
+  /**
    * 即原生的 ES 方法 Object.prototype.toString
    * @param {*} value
    * @returns {string}
@@ -595,6 +781,19 @@ module.exports = function () {
     return value
   }
 
+  /**
+   * 按 SameValueZero 进行比较
+   * http://ecma-international.org/ecma-262/7.0/#sec-samevaluezero
+   * @param {*} x
+   * @param {*} y
+   * @returns {boolean}
+   */
+  function compareBySameValueZero(x, y) {
+    if (getTag(x) !== getTag(y)) return false
+    if (isNaN(x) && isNaN(y)) return true
+    return x === y
+  }
+
   return {
     chunk,
     compact,
@@ -618,8 +817,19 @@ module.exports = function () {
     lastIndexOf,
     initial,
     intersection,
+    intersectionBy,
+    intersectionWith,
+    join,
+    last,
     uniq,
     filter,
+    nth,
+    pull,
+    pullAll,
+    pullAllBy,
+    pullAllWith,
+    pullAt,
+    reverse,
 
     MatchesProperty,
     Matches,
@@ -637,10 +847,12 @@ module.exports = function () {
     isFunction,
     getTag,
     isLength,
+    isRegExp,
     get,
     negate,
     iteratee,
     identity,
     property,
+    compareBySameValueZero
   }
 }()
