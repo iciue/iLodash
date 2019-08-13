@@ -521,6 +521,113 @@ module.exports = function () {
   }
 
   /**
+   * 使用二分查找搜索 val 应插入 arr 的位置, 返回位置应尽量靠左
+   * @param {Array} arr
+   * @param {*} val
+   * @returns {number} value 应插入的位置的下标
+   */
+  function sortedIndex(arr, val) {
+    let idx = binarySearch(arr, val, false)
+    if (idx < 0) return Math.abs(idx) - 1
+    return idx
+  }
+
+  /**
+   * 类似 sortedIndex, 但接受一个迭代器. 通过比对迭代器返回的值确认 val 应插入的位置
+   * @param {Array} arr
+   * @param {*} val
+   * @param {} predicate
+   * @returns {number}
+   */
+  function sortedIndexBy(arr, val, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    return sortedIndex((arr.map(it => shorthand(it)), shorthand(val)))
+  }
+
+  /**
+   * 类似 indexOf, 不同之处在于接受一个已经排序的数组, 二分查找 val 的下标, 返回可能的最低位的下标
+   * @param {Array} arr
+   * @param {*} val
+   * @returns {number} 反会 val 在 arr 中的下标, 如果不存在则返回 - 1
+   */
+  function sortedIndexOf(arr, val) {
+    arr = arr.sort((a, b) => a - b)
+    const idx = binarySearch(arr, val, false)
+    return idx < 0 ? -1 : idx
+  }
+
+  /**
+   * 类似 sortedIndex, 但返回可能的最高索引
+   * @param {Array} arr  The sorted array to inspect.
+   * @param {*} The value to evaluate.
+   * @returns {number} Returns the index at which value should be inserted into array.
+   */
+  function sortedLastIndex(arr, val) {
+    let idx = binarySearch(arr, val, true)
+    if (idx < 0) return Math.abs(idx) - 1
+    return idx + 1
+  }
+
+  /**
+   * 类似 sortedLastIndex 但接受一个迭代器
+   * @param {*} arr
+   * @param {*} val
+   * @param {*} predicate
+   * @returns {number}  Returns the index of the matched should be inserted into array
+   */
+  function sortedLastIndexBy(arr, val, predicate) {
+    const shorthand = iteratee(predicate)
+    return sortedLastIndex(arr.map(it => shorthand(it)), shorthand(val))
+  }
+
+  /**
+   * 类似 sortedIndexOf , 但返回可能的最高位的下标
+   * @param {Array} arr  The sorted array to inspect.
+   * @param {*} The value to evaluate.
+   * @returns {number}  反会 val 在 arr 中的下标, 如果不存在则返回 - 1
+   */
+  function sortedLastIndexOf(arr, val) {
+    arr = arr.sort((a, b) => a - b)
+    const idx = binarySearch(arr, val, true)
+    return idx < 0 ? -1 : idx
+  }
+
+  /**
+   * 类似 Java 中的 Arrays.binarySearch, 接受一个有序的数组和值(target), 
+   * 如果数组中存在目标值则返回其对应的下标. 如果不存在则返回一个负数, 表达其应该插入的位置
+   * @param {Array} ary
+   * @param {value} target
+   * @param {boolean} highest 若为true则返回可能的最高位索引, 为 false 则返回可能的最低位的索引
+   * @param {number} [left=0]
+   * @param {number} [right=ary.length]
+   * @returns 存在target则返回下标, 不存在返回一个表示其应该插入的位置的负数. -1 表示应插入下标 0 的位置,  -2 表示应插入下标 1 的位置
+   */
+  function binarySearch(arr, target, highest = false, left = 0, right = arr.length) {
+    let mid = null
+    while (left < right) {
+      mid = ~~(left + (right - left) / 2)
+      switch (true) {
+        case arr[mid] < target:
+          left = mid + 1
+          break;
+        case arr[mid] > target:
+          right = mid
+          break
+        default:
+          if (highest) {
+            if (arr[mid + 1] !== target) return mid
+            left = mid + 1
+          } else {
+            if (arr[mid - 1] !== target) return mid
+            right = mid
+          }
+          break;
+      }
+    }
+    return left * -1 - 1
+  }
+
+  /**
    * 在原数组上交换元素的位置
    * @param {Array  } arr
    * @param {number} i the index of exchange element
@@ -830,7 +937,14 @@ module.exports = function () {
     pullAllWith,
     pullAt,
     reverse,
+    sortedIndex,
+    sortedIndexBy,
+    sortedIndexOf,
+    sortedLastIndex,
+    sortedLastIndexBy,
+    sortedLastIndexOf,
 
+    binarySearch,
     MatchesProperty,
     Matches,
     isMatch,
