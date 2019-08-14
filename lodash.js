@@ -593,6 +593,93 @@ module.exports = function () {
   }
 
   /**
+   * 返回一个新的不含重复值的数组, 不同于 uniq, 该方法对已排序的数据进行了优化
+   * ? 啥优化
+   * @param {*} arr
+   */
+  function sortedUniq(arr) {
+    const ret = [arr[0]]
+    for (let i = 1, len = arr.length; i < len; i++) {
+      if (ret[i - 1] !== arr[i]) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 sortedUniq 但接受一个迭代器, 对比迭代器返回的值判断是否重复
+   * @param {*} arr
+   * @param {*} predicate
+   */
+  function sortedUniqBy(arr, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    const map = {}
+    const ret = []
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (map[shorthand(arr[i])]) continue
+      ret.push(arr[i])
+      map[shorthand(arr[i])] = true
+    }
+    return ret
+  }
+
+  /**
+   * 返回数组的所有成员, 除了第一项
+   * @param {array} arr
+   * @return {array}
+   */
+  function tail(arr) {
+    return arr.slice(1)
+  }
+
+  /**
+   * 创建一个新的数组, 从 arr 的起始位置开始提取 n 个元素
+   * @param {*} arr
+   * @param {number} [n=1]
+   */
+  function take(arr, n = 1) {
+    return arr.slice(0, n)
+  }
+
+  /**
+   * 类似 take, 但从右往左提取 n 个元素
+   * @param {*} arr
+   * @param {number} [n=1]
+   * @returns
+   */
+  function takeRight(arr, n = 1) {
+    const ret = []
+    for (let len = arr.length, i = len - n; i < len; i++) {
+      if (i >= 0) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 takeRight, 从右往左提取元素, 直到 谓词函数返回 false
+   * @param {*} arr
+   * @param {*} predicate
+   */
+  function takeRightWhile(arr, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    const ret = []
+    for (let i = arr.length - 1; i >=0; i--) {
+      if (!shorthand(arr[i])) break
+      ret.unshift(arr[i])
+    }
+    return ret
+  }
+
+  function takeWhile(arr, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    const ret = []
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (!shorthand(arr[i])) break
+      ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
    * 类似 Java 中的 Arrays.binarySearch, 接受一个有序的数组和值(target), 
    * 如果数组中存在目标值则返回其对应的下标. 如果不存在则返回一个负数, 表达其应该插入的位置
    * @param {Array} ary
@@ -943,6 +1030,13 @@ module.exports = function () {
     sortedLastIndex,
     sortedLastIndexBy,
     sortedLastIndexOf,
+    sortedUniq,
+    sortedUniqBy,
+    tail,
+    take,
+    takeRight,
+    takeRightWhile,
+    takeWhile,
 
     binarySearch,
     MatchesProperty,
