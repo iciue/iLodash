@@ -662,7 +662,7 @@ module.exports = function () {
   function takeRightWhile(arr, predicate) {
     const shorthand = iteratee(predicate) || identity
     const ret = []
-    for (let i = arr.length - 1; i >=0; i--) {
+    for (let i = arr.length - 1; i >= 0; i--) {
       if (!shorthand(arr[i])) break
       ret.unshift(arr[i])
     }
@@ -675,6 +675,217 @@ module.exports = function () {
     for (let i = 0, len = arr.length; i < len; i++) {
       if (!shorthand(arr[i])) break
       ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 使用 SameValueZero 进行数组去重
+   * @param {*} arr
+   */
+  function union(...arys) {
+    const ret = []
+    flattenDeep(arys).forEach(it => {
+      if (!ret.includes(it)) ret.push(it)
+    })
+    return ret
+  }
+
+  /**
+   * 类似 union , 但可以接受一个迭代函数
+   * @param {...Array} [arrays] The arrays to inspect.
+   * @param {Function} [iteratee=_.identity] The iteratee invoked per element.
+   * @returns {Array} Returns the new array of combined values.
+   */
+  function unionBy(...args) {
+    if (isArray(last(args))) return union(args)
+    const map = []
+    const shorthand = iteratee(args.pop()) || identity
+    return flattenDeep(args).filter(it => {
+      if (!map.includes(shorthand(it))) {
+        map.push(shorthand(it))
+        return it
+      }
+    })
+  }
+
+  /**
+   * 类似 union, 但可以接受一个比较函数
+   * @param {...Array} [arrays]
+   * @param {Function}  [comparator]
+   * @returns
+   */
+  function unionWith(...args) {
+    const ret = []
+    const comparator = iteratee(args.pop())
+    args = flattenDeep(args)
+    for (let i = 0; i < args.length; i++) {
+      let flag = false
+      for (let j = 0; j < ret.length; j++) {
+        if (comparator(args[i], ret[j])) {
+          flag = true
+          break
+        }
+      }
+      if (!flag) ret.push(args[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 uniqBy, 但接受一个谓词函数
+   * @param {*} arr
+   * @param {*} predicate
+   */
+  function uniqBy(arr, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    const ret = []
+    for (let i = 0, len = arr.length; i < len; i++) {
+      let flag = false
+      for (let j = 0, len2 = ret.length; j < len2; j++) {
+        if (shorthand(arr[i]) === shorthand(ret[j])) {
+          flag = true
+          break
+        }
+      }
+      if (!flag) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 uniq, 但接受一个比较函数
+   * @param {*} arr
+   * @param {*} comparator
+   */
+  function uniqWith(arr, comparator) {
+    const ret = []
+    for (let i = 0; i < arr.length; i++) {
+      let flag = false
+      for (let j = 0; j < ret.length; j++) {
+        if (comparator(arr[i], ret[j])) {
+          flag = true
+          break
+        }
+      }
+      if (!flag) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 返回一个二维数组, 数组的第一个元素(数组)包含所有给定数组的第一个值, 数组的第二个元素(数组)包含所有给定数组的第二个值
+   * @param {array} arrays
+   * @returns {array}
+   */
+  function zip(...arrs) {
+    const ret = []
+    const len = arrs.reduce((max, arr) => arr.length > max ? arr.length : max, 0)
+    for (let i = 0; i < arrs.length; i++) {
+      for (let j = 0; j < len; j++) {
+        if (ret[j] === void 0) ret[j] = []
+        ret[j].push(arrs[i][j] === void 0 ? void 0 : arrs[i][j])
+      }
+    }
+    return ret
+  }
+
+
+  /**
+   * 逆 zip, 返回一个数组, 返回数组的第一项元素包含给定数组的第一个元素, 以此类推
+   * ? 除了参数不一样好像和 zip 都一样啊
+   * @param {*} arr
+   */
+  function unzip(arr) {
+    return zip(...arr)
+  }
+
+  /**
+   * 返回一个数组, 值为迭代器处理过的 unzip值
+   * @param {Array}} arr
+   * @param {*} predicate
+   * @returns {Array}
+   */
+  function unzipWith(arr, predicate) {
+    const shorthand = iteratee(predicate) || identity
+    const ret = unzip(arr)
+    return ret.map(it => shorthand(...it))
+  }
+
+  /**
+   * 返回一个新数组, 值为从给定数组 arr 中排除 vals 值剩余的数组
+   * 使用 sameValueZero 比较
+   * @param {*} arr
+   * @param {*} vals
+   */
+  function without(arr, ...vals) {
+    const ret = []
+    for (let i = 0; i < arr.length; i++) {
+      if (!vals.includes(arr[i])) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 创建一个不含重复项的数组, 其值为给定数组中不同的数字
+   * @param {*} arrs
+   * @returns {Array} 
+   */
+  function xor(...arrs) {
+    const ret = []
+    arr = flattenDeep(arrs)
+    const map = Array(arr.length).fill(0)
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (map[arr[i]]) continue
+      for (let j = i + 1; j < len; j++) {
+        if (arr[i] === arr[j]) {
+          map[arr[i]] = 1
+          break
+        }
+      }
+      if (!map[arr[i]]) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  /**
+   * 类似 xor 但会接受一个迭代器以判断元素是否相等
+   * @param {*} args
+   */
+  function xorBy(...args) {
+    if (isArray(last(args))) return xor(args)
+    const shorthand = iteratee(args.pop()) || identity
+    const ret = []
+    arr = flattenDeep(args)
+    const map = Array(arr.length).fill(0)
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (map[i]) continue
+      for (let j = i + 1; j < len; j++) {
+        if (shorthand(arr[i]) === shorthand(arr[j])) {
+          map[i] = 1
+          map[j] = 1
+        }
+      }
+      if (!map[i]) ret.push(arr[i])
+    }
+    return ret
+  }
+
+  function xorWith(...args) {
+    if (isArray(last(args))) return xor(args)
+    const compare = args.pop() || identity
+    const ret = []
+    arr = flattenDeep(args)
+    const map = Array(arr.length).fill(0)
+    for (let i = 0, len = arr.length; i < len; i++) {
+      if (map[i]) continue
+      for (let j = i + 1; j < len; j++) {
+        if (compare(arr[i], arr[j])) {
+          map[i] = true
+          map[j] = true
+        }
+      }
+      if (!map[i]) ret.push(arr[i])
     }
     return ret
   }
@@ -944,7 +1155,7 @@ module.exports = function () {
    * @param {string|Array|object} func
    * @returns {Function} 
    */
-  function iteratee(func = identity(func)) {
+  function iteratee(func) {
     if (isString(func)) return property(func)
 
     if (isPlainObject(func)) return Matches(func)
@@ -1037,6 +1248,18 @@ module.exports = function () {
     takeRight,
     takeRightWhile,
     takeWhile,
+    union,
+    unionBy,
+    unionWith,
+    uniqBy,
+    uniqWith,
+    zip,
+    unzip,
+    unzipWith,
+    without,
+    xor,
+    xorBy,
+    xorWith,
 
     binarySearch,
     MatchesProperty,
